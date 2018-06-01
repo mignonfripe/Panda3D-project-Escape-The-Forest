@@ -25,10 +25,8 @@ def addTitle(text):
 
 
 class Project(ShowBase):
-    ReadyToJump = False
-    Jump = 0
     def __init__(self):
-	
+
         ShowBase.__init__(self)
         self.win.setClearColor((0.455, 0.816, 0.945, 1))
 
@@ -109,7 +107,7 @@ class Project(ShowBase):
         self.accept("arrow_down", self.setKey, ["backward", True])
         self.accept( "space" , self.setKey,["jump",True])
         self.accept( "a" , self.setKey,["action",True])
-		
+
         self.accept("arrow_left-up", self.setKey, ["left", False])
         self.accept("arrow_right-up", self.setKey, ["right", False])
         self.accept("arrow_up-up", self.setKey, ["forward", False])
@@ -118,8 +116,7 @@ class Project(ShowBase):
         self.accept( "a-up" , self.setKey,["action",False])
 
         taskMgr.add(self.movement, "Movement")
-        taskMgr.add(self.jump, 'Jump')
-		
+
         self.moving = False
 
         self.disableMouse()
@@ -145,7 +142,7 @@ class Project(ShowBase):
     def movement(self, task):
         dt = globalClock.getDt()
         startpos = self.Freddy.getPos()
-		
+
         speed = -5
 
         if self.keyMap["left"] :
@@ -202,7 +199,7 @@ class Project(ShowBase):
             self.lever1.play("OnOff")
             self.stone.play("Fall")
 
-        if delta2 < 3 and self.keyMap["action"] :
+        if delta2 < 30 and self.keyMap["action"] :
             self.lever2.play("OnOff")
             self.dirt.play("Up")
 
@@ -215,6 +212,15 @@ class Project(ShowBase):
                 self.Freddy.stop()
                 self.Freddy.loop("Pose")
                 self.moving = False
+
+        if self.Freddy.getZ() < 1 :
+            self.Freddy.setZ(1)
+        dt = globalClock.getDt()
+        maxZ = 5
+        if self.keyMap["jump"] == True and self.Freddy.getZ() <= maxZ:
+            self.Freddy.setZ(self.Freddy.getZ() + 5 *dt)
+        if self.keyMap["jump"] == False and self.Freddy.getZ() >= 1:
+            self.Freddy.setZ(self.Freddy, -2 *dt)
 
         # Collisions again
         self.cTrav.traverse(render)
@@ -238,28 +244,7 @@ class Project(ShowBase):
             self.camera.setZ(self.Freddy.getZ() + 13.125)
 
         self.camera.lookAt(self.floater)
-        return task.cont
 
-    def jump(self,task):
-        if self.Freddy.getZ() < 1:
-            self.Freddy.setZ(1)
-        dt = globalClock.getDt()
-        maxZ = 2
-        ReadyToJump = True
-        Jump = 0
-        if self.keyMap["jump"]:
-            if ReadyToJump == True :
-                if self.Freddy.getZ() < maxZ :
-                    self.Freddy.setZ(self.Freddy.getZ() + self.jump *dt)
-                    self.jump += 20 *dt
-                    ReadyToJump = False
-                if self.Freddy.getZ() > maxZ:
-                    self.Freddy.setZ(self.Freddy.getZ() + self.jump *dt)
-                    self.jump -= 20 *dt
-                    ReadyToJump = False
-                    if self.Freddy.getZ() < 1:
-                        self.jump = 0
-                        ReadyToJump = True
         return task.cont
 
 # Launch the game
