@@ -1,7 +1,7 @@
 # Libraries
 from direct.showbase.ShowBase import ShowBase
-from panda3d.core import CollisionTraverser, CollisionNode
-from panda3d.core import CollisionHandlerQueue, CollisionSphere
+from panda3d.core import CollisionTraverser, CollisionNode, CollisionHandlerPusher
+from panda3d.core import CollisionHandlerQueue, CollisionSphere, CollisionBox
 from panda3d.core import Filename, AmbientLight, DirectionalLight
 from panda3d.core import PandaNode, NodePath, Camera, TextNode
 from panda3d.core import CollideMask, BitMask32
@@ -127,6 +127,7 @@ class Project(ShowBase):
 
         # Collisions
         self.cTrav = CollisionTraverser()
+        self.pusher = CollisionHandlerPusher()
         self.FreddyGroundHandler = CollisionHandlerQueue()
         self.FreddyGroundSphere = CollisionSphere(0,0,0.5,0.3) #Coordinates of the center and radius
         self.FreddyGroundCol = CollisionNode('freddySphere')
@@ -135,6 +136,26 @@ class Project(ShowBase):
         self.FreddyGroundCol.setIntoCollideMask(BitMask32.allOff())
         self.FreddyGroundColNp = self.Freddy.attachNewNode(self.FreddyGroundCol)
         self.cTrav.addCollider(self.FreddyGroundColNp, self.FreddyGroundHandler)
+
+        self.BridgeHandler = CollisionHandlerQueue()
+        self.BridgeBox = CollisionBox((1, 17, 0), (5, 16.8, 10))
+        self.BridgeCol = CollisionNode('bridgeBox')
+        self.BridgeCol.addSolid(self.BridgeBox)
+        self.BridgeCol.setFromCollideMask(BitMask32.allOff())
+        self.BridgeCol.setIntoCollideMask(BitMask32.bit(0))
+        self.BridgeColNp = self.bridge.attachNewNode(self.BridgeCol)
+        self.cTrav.addCollider(self.BridgeColNp, self.BridgeHandler)
+        self.pusher.addCollider(self.FreddyGroundColNp, self.BridgeColNp)
+
+        self.StoneHandler = CollisionHandlerQueue()
+        self.StoneBox = CollisionBox((39, 27, 0), (41, 31, 3))
+        self.StoneCol = CollisionNode('stoneBox')
+        self.StoneCol.addSolid(self.StoneBox)
+        self.StoneCol.setFromCollideMask(BitMask32.allOff())
+        self.StoneCol.setIntoCollideMask(BitMask32.bit(0))
+        self.StoneColNp = self.stone.attachNewNode(self.StoneCol)
+        self.cTrav.addCollider(self.StoneColNp, self.StoneHandler)
+        self.pusher.addCollider(self.FreddyGroundColNp, self.StoneColNp)
 
     def setKey(self, key, value) :
         self.keyMap[key] = value
@@ -193,10 +214,12 @@ class Project(ShowBase):
 
         if delta < 3 and self.keyMap["action"] :
             self.lever.play("OnOff")
+            self.BridgeCol.setIntoCollideMask(BitMask32.allOff())
             self.bridge.play("Drop")
 
         if delta1 < 3 and self.keyMap["action"] :
             self.lever1.play("OnOff")
+            self.StoneCol.setIntoCollideMask(BitMask32.allOff())
             self.stone.play("Fall")
 
         if delta2 < 30 and self.keyMap["action"] :
@@ -216,9 +239,11 @@ class Project(ShowBase):
         if self.Freddy.getZ() < 1 :
             self.Freddy.setZ(1)
         dt = globalClock.getDt()
-        maxZ = 5
-        if self.keyMap["jump"] == True and self.Freddy.getZ() <= maxZ:
+        maxZ = 3.5
+        if self.keyMap["jump"] == True and self.Freddy.getZ() <= 2:
             self.Freddy.setZ(self.Freddy.getZ() + 5 *dt)
+            if self.Freddy.getZ() >= maxZ :
+                self.Freddy.setZ(maxZ)
         if self.keyMap["jump"] == False and self.Freddy.getZ() >= 1:
             self.Freddy.setZ(self.Freddy, -2 *dt)
 
@@ -228,7 +253,7 @@ class Project(ShowBase):
         for i in range(self.FreddyGroundHandler.getNumEntries()):
             entry = self.FreddyGroundHandler.getEntry(i)
             entries.append(entry)
-        if (len(entries)>0) and (entries[0].getIntoNode().getName() == "Htbox"):
+        if (len(entries)>0) and ((entries[0].getIntoNode().getName() == "Htbox") or (entries[0].getIntoNode().getName() == "bridgeBox") or (entries[0].getIntoNode().getName() == "stoneBox")) :
             self.Freddy.setPos(startpos)
 
         camx = self.Freddy.getX() - self.camera.getX()
