@@ -43,6 +43,7 @@ class Project(ShowBase):
         self.inst4 = addInstructions(0.24, "[Top arrow]: Make Freddy move forward")
         self.inst5 = addInstructions(0.30, "Bottom arrow]: Make Freddy move back")
         self.inst6 = addInstructions(0.36, "[Space]: Make Freddy jump")
+        self.inst7 = addInstructions(0.42, "[A]: Operate the lever")
 
         # 3D objects
         self.map = loader.loadModel("obj/Map.egg.pz")
@@ -83,7 +84,7 @@ class Project(ShowBase):
         self.stone.reparentTo(render)
 
         # Creation of the main character, Freddy
-        FreddyStartPos = (8,-8,1)
+        FreddyStartPos = (8,-8,1.5)
         self.Freddy = Actor("obj/Freddy.egg" ,
                             {"Run" : "obj/Run.egg",
 							 "Pose" : "obj/Pose.egg"})
@@ -96,7 +97,7 @@ class Project(ShowBase):
 
         self.floater = NodePath(PandaNode("floater"))
         self.floater.reparentTo(self.Freddy)
-        self.floater.setZ(1)
+        self.floater.setZ(0)
 
         # Controls for move and interact
 
@@ -105,15 +106,15 @@ class Project(ShowBase):
         self.accept("arrow_right", self.setKey, ["right", True])
         self.accept("arrow_up", self.setKey, ["forward",True])
         self.accept("arrow_down", self.setKey, ["backward", True])
-        self.accept( "space" , self.setKey,["jump",True])
-        self.accept( "a" , self.setKey,["action",True])
+        self.accept("space", self.setKey,["jump",True])
+        self.accept("a", self.setKey,["action",True])
 
         self.accept("arrow_left-up", self.setKey, ["left", False])
         self.accept("arrow_right-up", self.setKey, ["right", False])
         self.accept("arrow_up-up", self.setKey, ["forward", False])
         self.accept("arrow_down-up", self.setKey, ["backward", False])
-        self.accept( "space-up" , self.setKey,["jump",False])
-        self.accept( "a-up" , self.setKey,["action",False])
+        self.accept("space-up", self.setKey,["jump",False])
+        self.accept("a-up", self.setKey,["action",False])
 
         taskMgr.add(self.movement, "Movement")
 
@@ -156,6 +157,16 @@ class Project(ShowBase):
         self.StoneColNp = self.stone.attachNewNode(self.StoneCol)
         self.cTrav.addCollider(self.StoneColNp, self.StoneHandler)
         self.pusher.addCollider(self.FreddyGroundColNp, self.StoneColNp)
+
+        self.DirtHandler = CollisionHandlerQueue()
+        self.DirtBox = CollisionBox((15, 83, 0), (13, 82.5, 5))
+        self.DirtCol = CollisionNode('dirtBox')
+        self.DirtCol.addSolid(self.DirtBox)
+        self.DirtCol.setFromCollideMask(BitMask32.allOff())
+        self.DirtCol.setIntoCollideMask(BitMask32.bit(0))
+        self.DirtColNp = self.dirt.attachNewNode(self.DirtCol)
+        self.cTrav.addCollider(self.DirtColNp, self.DirtHandler)
+        self.pusher.addCollider(self.FreddyGroundColNp, self.DirtColNp)
 
     def setKey(self, key, value) :
         self.keyMap[key] = value
@@ -212,19 +223,30 @@ class Project(ShowBase):
         delta1 = math.sqrt(deltax1**2 + deltay1**2 + deltaz1**2)
         delta2 = math.sqrt(deltax2**2 + deltay2**2 + deltaz2**2)
 
+        Animb = self.bridge.getAnimControl("Drop")
+        self.bridgeOpen = Animb.getFrame()
+        Anims = self.stone.getAnimControl("Fall")
+        self.stoneOpen = Anims.getFrame()
+        Animd = self.dirt.getAnimControl("Up")
+        self.dirtOpen = Animd.getFrame()
+
         if delta < 3 and self.keyMap["action"] :
-            self.lever.play("OnOff")
-            self.BridgeCol.setIntoCollideMask(BitMask32.allOff())
-            self.bridge.play("Drop")
+            if self.bridgeOpen == 0 :
+                self.lever.play("OnOff")
+                self.BridgeCol.setIntoCollideMask(BitMask32.allOff())
+                self.bridge.play("Drop")
 
         if delta1 < 3 and self.keyMap["action"] :
-            self.lever1.play("OnOff")
-            self.StoneCol.setIntoCollideMask(BitMask32.allOff())
-            self.stone.play("Fall")
+            if self.stoneOpen == 0:
+                self.lever1.play("OnOff")
+                self.StoneCol.setIntoCollideMask(BitMask32.allOff())
+                self.stone.play("Fall")
 
-        if delta2 < 30 and self.keyMap["action"] :
-            self.lever2.play("OnOff")
-            self.dirt.play("Up")
+        if delta2 < 3 and self.keyMap["action"] :
+            if self.dirtOpen == 0 :
+                self.lever2.play("OnOff")
+                self.DirtCol.setIntoCollideMask(BitMask32.allOff())
+                self.dirt.play("Up")
 
         if self.keyMap["forward"] or self.keyMap["left"] or self.keyMap["right"] or self.keyMap["backward"] :
             if self.moving is False :
@@ -253,7 +275,10 @@ class Project(ShowBase):
         for i in range(self.FreddyGroundHandler.getNumEntries()):
             entry = self.FreddyGroundHandler.getEntry(i)
             entries.append(entry)
-        if (len(entries)>0) and ((entries[0].getIntoNode().getName() == "Htbox") or (entries[0].getIntoNode().getName() == "bridgeBox") or (entries[0].getIntoNode().getName() == "stoneBox")) :
+        if (len(entries)>0) and ((entries[0].getIntoNode().getName() == "Htbox")
+                                or (entries[0].getIntoNode().getName() == "bridgeBox")
+                                or (entries[0].getIntoNode().getName() == "stoneBox")
+                                or (entries[0].getIntoNode().getName() == "dirtBox")) :
             self.Freddy.setPos(startpos)
 
         camx = self.Freddy.getX() - self.camera.getX()
